@@ -1,6 +1,6 @@
 # Stratification-DNS
 
-This repository contains the scripts used to produce the figures and supporting data for the paper: "Projections of the global joint probability density behind stratifications driven by uncertain and heterogeneous forcing, Paul M. Mannix, David A. Ham, John Craske, (2024)."
+This repository contains the scripts used to produce the figures and supporting data for the paper: "Projections of the global joint probability density behind stratifications driven by uncertain and heterogeneous forcing, Paul M. Mannix and John Craske, (2024)."
 
 The data presented has been generated using the scripts:
 
