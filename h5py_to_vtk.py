@@ -68,8 +68,9 @@ if __name__ == "__main__":
     #IN_FILE = "Sim_RBC_Ra1e09"
     #IN_FILE = "Sim_STEP_Ra1e9"
     #IN_FILE = "Sim_IC_Ra1e11_T3e04"
-    IN_FILE = "Sim_PLUME_Ra1e09"
+    #IN_FILE = "Sim_PLUME_Ra1e09"
     #IN_FILE = "Sim_SINE_Ra1e10"
+    IN_FILE = "Sim_WALLPLUME_Ra1e09"
 
     DIR_ABS_PATH = PATH + IN_FILE
     OUT_FILE     = PATH + "para_visualisation"

@@ -120,6 +120,23 @@ class PdfPlotter(object):
         for ax,name in zip(axs.flat,Names.flat):
             ax.set(ylabel=name['y'])
 
+
+        # Add mean E[B]
+        μ = np.trapz(y=self.pdf.b*self.pdf.fB,x=self.pdf.b)
+        y = np.linspace(np.min(self.pdf.fB),np.max(self.pdf.fB),50)
+        axs[0, 0].plot(μ*np.ones(50),y,'k--',linewidth=2)
+        
+        # Add mean E_Z[B]
+        z = self.pdf.z
+        b = np.outer(self.pdf.b,np.ones(len(z)))
+        f = self.pdf.fBZ
+        EB_Z = np.trapz(y=b*f,x=b,axis=0)
+        idx1 = np.where(EB_Z < self.interval['b'][1])
+        idx2 = np.where(EB_Z > self.interval['b'][0])
+        idx = np.intersect1d(idx1,idx2)
+        axs[1,0].plot(EB_Z[idx], z[idx],'k--',linewidth=2)
+
+
         if figname != None:
             fig.savefig(figname, dpi=100)
         #plt.show()
@@ -147,11 +164,13 @@ class PdfPlotter(object):
         twin_00.set_ylabel(r'$E_B['+term+']$')
 
         Z = gaussian_filter1d(E_2D['bz'][b_idx,:][:,z_idx], sigma=sigma_smooth,truncate=3.0)
-        CS_10  = axs[1, 0].contour(self.pdf.b[b_idx], self.pdf.z[z_idx], Z.T, levels=Nlevels, norm=norm, cmap='Blues')
+        norm, cmap = cmap_and_norm(Z)
+        CS_10  = axs[1, 0].contour(self.pdf.b[b_idx], self.pdf.z[z_idx], Z.T, levels=Nlevels, norm=norm, cmap=cmap)
         axs[1, 0].clabel(CS_10, inline=False, fontsize=1)
 
         Z = gaussian_filter1d(E_2D['wb'][w_idx,:][:,b_idx], sigma=sigma_smooth,truncate=3.0)
-        CS_20  = axs[2, 0].contour(self.pdf.b[b_idx], self.pdf.w[w_idx],  Z, levels=Nlevels, norm=norm, cmap='Blues')
+        norm, cmap = cmap_and_norm(Z)
+        CS_20  = axs[2, 0].contour(self.pdf.b[b_idx], self.pdf.w[w_idx],  Z, levels=Nlevels, norm=norm, cmap=cmap)
         axs[2, 0].clabel(CS_20, inline=False, fontsize=1) 
 
         # W ---------------------
@@ -160,11 +179,13 @@ class PdfPlotter(object):
         twin_01.set_ylabel(r'$E_W['+term+']$')
 
         Z = gaussian_filter1d(E_2D['wz'][w_idx,:][:,z_idx], sigma=sigma_smooth,truncate=3.0)
-        CS_11  = axs[1, 1].contour(self.pdf.w[w_idx], self.pdf.z[z_idx], Z.T, levels = Nlevels,norm=norm,cmap='Blues')
+        norm, cmap = cmap_and_norm(Z)
+        CS_11  = axs[1, 1].contour(self.pdf.w[w_idx], self.pdf.z[z_idx], Z.T, levels = Nlevels,norm=norm,cmap=cmap)
         axs[1, 1].clabel(CS_11, inline=False, fontsize=1)     
 
         Z = gaussian_filter1d(E_2D['wb'][w_idx,:][:,b_idx], sigma=sigma_smooth,truncate=3.0)
-        CS_21  = axs[2, 1].contour(self.pdf.w[w_idx], self.pdf.b[b_idx], Z.T, levels = Nlevels,norm=norm,cmap='Blues')
+        norm, cmap = cmap_and_norm(Z)
+        CS_21  = axs[2, 1].contour(self.pdf.w[w_idx], self.pdf.b[b_idx], Z.T, levels = Nlevels,norm=norm,cmap=cmap)
         axs[2, 1].clabel(CS_21, inline=False, fontsize=1) 
 
         if figname != None:
@@ -367,10 +388,14 @@ class PdfPlotter(object):
         dw = w[1] - w[0]
         w_edges = np.hstack( [w - .5*dw*np.ones(len(w)), w[-1] + .5*dw ])
         values  = self.pdf.fW[w_idx]
-        axs[0].stairs(values[1:-1], edges=w_edges[1:-1])
+        
+        # axs[0].stairs(values[1:-1], edges=w_edges[1:-1])
+        # axs[0].set_ylim([0.,1.01*max(self.pdf.fW[w_idx])])
+        # axs[0].fill_between(x=self.pdf.w[w_idx],y1=self.pdf.fW[w_idx],color= "r",alpha= 0.2)
 
-        axs[0].set_ylim([0.,1.01*max(self.pdf.fW[w_idx])])
-        axs[0].fill_between(x=self.pdf.w[w_idx],y1=self.pdf.fW[w_idx],color= "r",alpha= 0.2)
+        axs[0].semilogy(self.pdf.w[w_idx], self.pdf.fW[w_idx])
+
+
         axs[0].set_ylabel(r'$f_W$',color='r', fontsize=30)
         axs[0].tick_params(axis="y",labelcolor="r")
         axs[0].tick_params(axis='both', labelsize=30)
@@ -662,13 +687,104 @@ class PdfPlotter(object):
         return None
 
 
+    # ----- Appendix B -----
+
+    def plot_pdf_AppendixB(self, figname=None, Nlevels=15, norm='log'):
+        """Return a base plot of the PDFs ontop of which we can overlay the expectations"""
+
+        b_idx, w_idx, z_idx = self.calculate_interval()
+        fig, axs = plt.subplots(1, 2,figsize=(12,4),constrained_layout=True)
+        
+        # f_B ---------------
+        axs[0].plot(self.pdf.b[b_idx],self.pdf.fB[b_idx],'r')
+        axs[0].set_ylim([0.,1.01*max(self.pdf.fB[b_idx])])
+        axs[0].fill_between(x=self.pdf.b[b_idx],y1=self.pdf.fB[b_idx],color= "r",alpha= 0.2)
+        name_00 = {'x':r'$b$','y':r'$f_B(b)$'}
+      
+        # f_W -------------
+        axs[1].plot(self.pdf.w[w_idx],self.pdf.fW[w_idx],'r')
+        axs[1].set_ylim([0.,1.01*max(self.pdf.fW[w_idx])])
+        axs[1].fill_between(x=self.pdf.w[w_idx],y1=self.pdf.fW[w_idx],color= "r",alpha= 0.2)
+        axs[1].tick_params('x', labelbottom=False)
+        name_01 = {'x':r'$w$','y':r'$f_W(w)$'}
+      
+        # Add mean E[B]
+        μ = np.trapz(y=self.pdf.b*self.pdf.fB,x=self.pdf.b)
+        y = np.linspace(np.min(self.pdf.fB),np.max(self.pdf.fB),50)
+        axs[0].plot(μ*np.ones(50),y,'k--',linewidth=2)
+        
+        Names = np.asarray([name_00,name_01])
+        for ax,name in zip(axs,Names):
+            ax.set(xlabel=name['x'])
+            ax.set(ylabel=name['y'])
+
+        if figname != None:
+            fig.savefig(figname, dpi=100)
+        #plt.show()
+        #plt.close(fig)
+
+        return fig, axs
+
+    def plot_expectation_AppendixB(self, term, figname=None, Nlevels=15, norm='linear', sigma_smooth=1):
+
+        """
+        Using the plots of the pdfs overlay the expectations in terms:
+        - contours for surface plots
+        - hatched lines for graph plots
+        """
+
+        b_idx, w_idx, z_idx = self.calculate_interval()
+        fig,axs = self.plot_pdf_AppendixB()
+
+        E_1D = self.pdf.Expectations[term]['1D']
+
+        # B ---------------------
+        twin_00 = axs[0].twinx()
+        twin_00.plot(self.pdf.b[b_idx],E_1D['b'][b_idx], 'b-',label=str(r'$E['+term+'\|b]$'))
+        twin_00.set_ylabel(r'$E_B['+term+']$')
+
+        # W ---------------------
+        twin_01 = axs[1].twinx()
+        twin_01.plot(self.pdf.w[w_idx],E_1D['w'][w_idx], 'b-',label=str(r'$E['+term+'\|w]$'))
+        twin_01.set_ylabel(r'$E_W['+term+']$')
+
+        if figname != None:
+            fig.savefig(figname, dpi=100)
+        #plt.show()
+        plt.close()
+
+        return None
+
+
 if __name__ == "__main__":
 
-    intervals = {'IC':{'w':(-0.05,0.05),'b':(0.004,0.008)}, 'ICR':{'w':(-0.05,0.05),'b':(0.004,0.008)}, 'RBC':{'w':(-1,1),'b':(0.4,0.6)}, 
-                 'PLUME':{'w':(-0.1,0.1),'b':(-0.01,0.01)}, 'SINE':{'w':(-.5,.5),'b':(0.05,.25)}, 'STEP':{'w':(-1,1),'b':(0.2,.8)}}
+    # intervals = {'IC':{'w':(-0.05,0.05),'b':(0.004,0.008)}, 'ICR':{'w':(-0.05,0.05),'b':(0.004,0.008)}, 'RBC':{'w':(-1,1),'b':(0.4,0.6)}, 
+    #              'PLUME':{'w':(-0.1,0.1),'b':(-0.01,0.01)}, 'SINE':{'w':(-.5,.5),'b':(0.05,.25)}, 'STEP':{'w':(-1,1),'b':(0.2,.8)}}
+
+    # # Generate all the plots in the Appendix
+    # for file in glob.glob("./data/*.pickle"):
+        
+    #     name = file.split('/')[-1].split('_')[0]
+    #     print('## Simulation case: ',name,'## \n')
+
+    #     os.mkdir(name)        
+    #     with open(file,'rb') as f:
+            
+    #         os.chdir(name)
+    #         pdf = pickle.load(f)
+    #         plotter = PdfPlotter(pdf, interval=intervals[name])
+    #         plotter.plot_pdf(figname='pdf_'+name+'.png')
+    #         for key,save in zip(pdf.Expectations.keys(),pdf.Save_Handles):
+    #             plotter.plot_expectation(term=key, figname=save+'.png', Nlevels=25, sigma_smooth=3)
+    #         os.chdir("../")
+
+
+    #intervals = {'WALLPLUME':{'w':(-0.005,0.005),'b':(-0.005,0.005)}}#,'IC':{'w':(-0.05,0.05),'b':(0.004,0.008)}, 'ICR':{'w':(-0.05,0.05),'b':(0.004,0.008)}, 'RBC':{'w':(-1,1),'b':(0.4,0.6)},'PLUME':{'w':(-0.1,0.1),'b':(-0.01,0.01)}, 'SINE':{'w':(-.5,.5),'b':(0.05,.25)}, 'STEP':{'w':(-1,1),'b':(0.2,.8)}}
+
+    intervals = {'WALLPLUME':{'w':(-0.005,0.005),'b':(-0.005,0.005)},'PLUME':{'w':(-0.075,0.075),'b':(-0.01,0.01)}}
 
     # Generate all the plots in the Appendix
-    for file in glob.glob("./data/*.pickle"):
+    for file in ['/home/pmannix/Stratification-DNS/data/WALLPLUME_pickled.pickle','/home/pmannix/Stratification-DNS/data/PLUME_pickled.pickle']:
         
         name = file.split('/')[-1].split('_')[0]
         print('## Simulation case: ',name,'## \n')

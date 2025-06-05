@@ -40,10 +40,11 @@ logger = logging.getLogger(__name__)
 # Parameters
 Lx, Lz = 4, 1
 Nx, Nz = 512,128
+#Nx, Nz = 1024,192
 Rayleigh = 10**9
 Prandtl  = 1
 
-filename ="/home/pmannix/Stratification-DNS/Plumes1e06/checkpoints/checkpoints_s1.h5" 
+filename ="./checkpoints/checkpoints_s1.h5" 
 
 # Create bases and domain
 start_init_time = time.time()
@@ -65,11 +66,11 @@ f = lambda x,μ,s: ( 1./(s*np.sqrt(2*np.pi)) )*np.exp(-0.5*( (x - μ)/s )**2)
 
 g_0      = domain.new_field()
 g_0.meta['x']['parity'] = 1
-g_0['g'] =-f(x,μ=0.25*Lx,s=0.1)
+g_0['g'] =-f(x,μ=0*Lx,s=0.1)
 
 g_1      = domain.new_field()
 g_1.meta['x']['parity'] = 1
-g_1['g'] =-f(x,μ=0.75*Lx,s=0.1)
+g_1['g'] =-f(x,μ=1*Lx,s=0.1)
 
 problem.parameters['g_0'] = g_0;
 problem.parameters['g_1'] = g_1;
@@ -98,9 +99,25 @@ solver = problem.build_solver(de.timesteppers.SBDF2)
 logger.info('Solver built')
 
 # Integration parameters
-solver.stop_sim_time  = 15000 #int( Rayleigh**.5 )/2 # Fraction of a diffusive time
+#solver.stop_sim_time  = 15000 #int( Rayleigh**.5 )/2 # Fraction of a diffusive time
 solver.stop_wall_time = 24 * 60 * 60. # Stop after 24hrs
-solver.stop_iteration = np.inf
+solver.stop_iteration = 10**6 #np.inf
+
+# Initial conditions
+x, z = domain.all_grids()
+b = solver.state['b']
+bz = solver.state['bz']
+
+# Random perturbations, initialized globally for same results in parallel
+gshape = domain.dist.grid_layout.global_shape(scales=1)
+slices = domain.dist.grid_layout.slices(scales=1)
+rand = np.random.RandomState(seed=42)
+noise = rand.standard_normal(gshape)[slices]
+
+# Linear background + perturbations damped at walls
+zb, zt = z_basis.interval
+b['g'] = 1e-3 * noise * (zt - z) * (z - zb)
+b.differentiate('z', out=bz)
 
 # if filename != None:
 #     write,initial_timestep = solver.load_state(filename);
@@ -138,7 +155,7 @@ scalar.add_task("integ(u**2 + w**2)",  name='Eu(t)')
 scalar.add_task("integ(b**2)"       ,  name='Eb(t)')
 
 scalar.add_task("nu*integ(dx(u)**2 + uz**2 + dx(w)**2 + wz**2 )",  name='dU^2(t)_div_Re')
-scalar.add_task("integ(dx(b)**2 + bz**2)"                    ,  name='dB^2(t)'   )
+scalar.add_task("integ(dx(b)**2 + bz**2)"                       ,  name='dB^2(t)'   )
 
 scalar.add_task("inv_Vol*integ(u**2 + w**2,'z')", layout='c', name='Eu(k)' )
 scalar.add_task("inv_Vol*integ(u**2 + w**2,'x')", layout='c', name='Eu(Tz)')

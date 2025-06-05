@@ -22,13 +22,16 @@ class PdfGenerator(object):
     which [if Y = (B,Z) dim = 2D] or [if Y=(W,B,Z) dim = 3D]
     """
 
-    def __init__(self, file_dir, N_pts=2**8, frames=10):
+    def __init__(self, file_dir, pdf_range=None, N_pts=2**8, frames=10):
         """Initialise the class to hold the grid, PDFs and Expectations."""
 
         self.file = file_dir + '/';
         self.frames = frames
         self.N = N_pts
         self.data = self.load_data()
+
+        # Range ----------------------
+        self.pdf_range = pdf_range
 
         # Grid ----------------------
         self.b = np.zeros(self.N)
@@ -126,6 +129,46 @@ class PdfGenerator(object):
 
         return y_new(x_new)
 
+    def covariance_term(self):
+        """Load the data from the dedalus format."""    
+        
+        print('------  Loading Data ------- \n ')
+
+        file  = h5py.File(self.file + 'snapshots/snapshots_s1.h5', mode='r')
+       
+        # Y = [W,B,Z], y = [w,b,z] 
+        t = file['tasks/buoyancy'].dims[0][0][:]
+        x = file['tasks/buoyancy'].dims[1][0][:]
+        z = file['tasks/buoyancy'].dims[2][0][:]
+        
+        L_x = 4
+        L_z = 1
+        V   = L_x*L_z
+
+        E_dWdB = [];
+        for i in range(1,self.frames+1,1):
+        
+            # Expectation variables -------------
+            try:
+                dB_x = file['tasks/grad_b'][-i,0,:,:]# d/dx
+                dB_z = file['tasks/grad_b'][-i,1,:,:]# d/dz
+                dW_x = file['tasks/grad_w'][-i,0,:,:]# d/dx
+                dW_z = file['tasks/grad_w'][-i,1,:,:]# d/dz
+            except:
+                dB_x = file['tasks/grad_bx'][-i,:,:]# d/dx
+                dB_z = file['tasks/grad_bz'][-i,:,:]# d/dz
+                dW_x = file['tasks/grad_wx'][-i,:,:]# d/dx
+                dW_z = file['tasks/grad_wz'][-i,:,:]# d/dz
+                
+            E_dWdB_i = np.trapezoid(y=np.trapezoid(y=dW_x*dB_x + dW_z*dB_z, x=x, axis=0), x=z) 
+            
+            E_dWdB.append(E_dWdB_i)
+        
+        e_WB = (1/V)*np.mean(np.asarray(E_dWdB))
+        #print('E[dW^T dB] = %e'%e_WB)
+
+        return e_WB
+    
     def generate_pdf(self):
         """Generate all possible 1D and 2D PDFs."""
         
@@ -140,7 +183,10 @@ class PdfGenerator(object):
         data_1D = [W, B]
         for pdf_name,grid_name,X in zip(pdfs_1D,grid_1D,data_1D):
             
-            points, bin_edges = np.histogram(X.flatten(), bins=self.N, density=True)
+            if self.pdf_range is None:
+                points, bin_edges = np.histogram(X.flatten(), bins=self.N, density=True)
+            else:    
+                points, bin_edges = np.histogram(X.flatten(), bins=self.N, range=self.pdf_range[grid_name], density=True)
             grid = 0.5*(bin_edges[1:] + bin_edges[:-1])
             
             setattr(self,pdf_name,points)
@@ -341,6 +387,9 @@ class PdfGenerator(object):
         # Spectral TPE
         TPE = (-1./V)*np.mean(f['tasks/<zB>'][:,0,0][indx])
         
+        # cross dissipation
+        E_dWdB = self.covariance_term()
+
         # PDF TPE
         Ibz = np.outer(self.b,self.z)
         dz = abs(self.z[1] - self.z[0]) 
@@ -351,14 +400,14 @@ class PdfGenerator(object):
         if error > 1e-02:
             warnings.warn(f"TPE resdiual error must be less than 1% but got : {error} \n")
 
-        z_b = np.cumsum(self.fB)*db
+        z_b =  np.cumsum(self.fB)*db
         RPE = -np.sum(z_b*self.b*self.fB)*db
         APE = (TPE - RPE)
 
         self.stats = {'TPE':TPE,'APE':APE,'RPE':RPE,
                       '(1/2)<|U|^2>':.5*KE,'<|∇U|^2>/Re':Disp_U,
                       '(1/2)<|B|^2>':.5*BE,'<|∇B|^2>':   Disp_B,
-                      '<WB>':       wb_avg,'<B>':        B_avg }
+                      '<WB>':       wb_avg,'<∇W^T ∇B>':  E_dWdB, '<B>':        B_avg }
 
 
         with open("Diagnostics_" + name + ".txt", "w") as text_file:
@@ -366,8 +415,8 @@ class PdfGenerator(object):
             indx  = np.where(times > times[-self.frames])
             print('Nx,Nz,∆t = %d,%d,%e'%(len(x),len(z),dt),file=text_file); 
             print('Available frames = ',len(times),'Used frames = ',len(times[indx]),'∆T frames = ',abs(times[1]-times[0]),'\n',file=text_file)
-            print('  APE     &      RPE    &      E_k   &      <WB>   &       <e_U>/Re &   (1/2)<|B|^2> &      <e_B> &    <B> ',file=text_file)
-            print('%1.3e &  %1.3e &  %1.3e &   %1.3e &      %1.3e &      %1.3e &  %1.3e &  %1.3e '%(APE,RPE,.5*KE,wb_avg,Disp_U,.5*BE,Disp_B,B_avg),file=text_file)
+            print('  APE     &      RPE    &      E_k   &      <WB>   &       <e_U>/Re &   (1/2)<|B|^2> &      <e_B> &    <∇W^T ∇B> ',file=text_file)
+            print('%1.3e &  %1.3e &  %1.3e &   %1.3e &      %1.3e &      %1.3e &  %1.3e &  %1.3e '%(APE,RPE,.5*KE,wb_avg,Disp_U,.5*BE,Disp_B,E_dWdB),file=text_file)
             print('~~~~~~~~~~~~~~~~~~~~~ \n',file=text_file)
 
         return TPE, APE    
@@ -378,10 +427,10 @@ if __name__ == "__main__":
     # Generate the pdf objects for all plots
     
     files = glob.glob('/data/pmannix/PDF_DNS_Data/' + '/Sim**')
-    
-    names_frames  = {'ICR':5000, 'IC':5000, 'RBC':1000, 'PLUME':1700, 'SINE':1200, 'STEP':2000}
+    names_frames  = {'IC':5000, 'RBC':1000, 'PLUME':1700, 'SINE':1200, 'STEP':2000, 'WALLPLUME':1700}
     
     for file,(name,frames) in zip(files,names_frames.items()):
+        
         
         # check names match
         if name == file.split('/')[-1].split('_')[1]:
@@ -403,7 +452,54 @@ if __name__ == "__main__":
                 pickle.dump(pdf, f)
 
 
-    # To copy all the files generated to your data folder use
-    # $ cd /data/pmannix/PDF_DNS_Data
-    # $ cp -vr **/*.pickle /home/pmannix/Stratification-DNS/data/
-    # $ cp -vr **/*.txt /home/pmannix/Stratification-DNS/data/
+    # Generate the pdf objects for all PLUME objects with restricted range
+    
+    file = '/data/pmannix/PDF_DNS_Data/' + '/Sim_WALLPLUME_Ra1e09/'
+    name = 'WALLPLUME'
+    frames = 1700
+    pdf_range = None #{'w':(-0.005,0.005),'b':(-0.005,0.005)}
+
+    os.chdir(file)
+    print('## Simulation case: ',name,'## \n')
+
+    pdf = PdfGenerator(file_dir=file, pdf_range=pdf_range, N_pts=2**8,frames=frames)       
+
+    pdf.generate_pdf()
+    pdf.energetics(name)
+    pdf.spectra()
+    pdf.generate_expectation()
+
+    # Remove loaded data snapshots before saving
+    delattr(pdf, "data")
+
+    with open(name + '_pickled.pickle', 'wb') as f:
+        pickle.dump(pdf, f)
+
+    # --------------------------------------------------------------------------
+
+    file = '/data/pmannix/PDF_DNS_Data/' + '/Sim_PLUME_Ra1e09/'
+    name = 'PLUME'
+    frames = 1700
+    pdf_range = None #{'w':(-0.075,0.075),'b':(-0.0075,0.0075)}
+
+    os.chdir(file)
+    print('## Simulation case: ',name,'## \n')
+
+    pdf = PdfGenerator(file_dir=file, pdf_range=pdf_range, N_pts=2**8,frames=frames)       
+
+    pdf.generate_pdf()
+    pdf.energetics(name)
+    pdf.spectra()
+    pdf.generate_expectation()
+
+    # Remove loaded data snapshots before saving
+    delattr(pdf, "data")
+
+    with open(name + '_pickled.pickle', 'wb') as f:
+        pickle.dump(pdf, f)
+
+
+# # To copy all the files generated to your data folder use
+# # $ cd /data/pmannix/PDF_DNS_Data
+# # $ cp -vr **/*.pickle /home/pmannix/Stratification-DNS/data/
+# # $ cp -vr **/*.txt /home/pmannix/Stratification-DNS/data/

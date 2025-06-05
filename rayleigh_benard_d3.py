@@ -28,26 +28,21 @@ logger = logging.getLogger(__name__)
 
 # Parameters
 Lx, Lz = 4, 1
-Nx, Nz = 1024,192
+Nx, Nz = 1024,256
 Rayleigh = 10**9
 Prandtl = 1
 dealias = 3/2
 stop_sim_time = 10**3
 timestepper = d3.SBDF2
-max_timestep = 1.25e-04
+max_timestep = 1e-04
 dtype = np.float64
 
-Nx, Nz = 32,16
-Rayleigh = 10**3
-stop_sim_time = 50
-timestepper = d3.SBDF2
-max_timestep = 1e-03
 
 #type = 'RBC'; filename = None#"/data/pmannix/PDF_DNS_Data/Sim_RBC_Ra1e10/checkpoints/checkpoints_s1.h5" 
 #type = 'SINE'; filename = "/home/pmannix/Dstratify/DNS_RBC/HC_Ra1e10_T2e04_old/checkpoints/checkpoints_s1.h5"
-#type = 'STEP'; filename = "/home/pmannix/Dstratify/DNS_RBC/STEP_Ra1e9_T4e03/checkpoints/checkpoints_s1.h5"
+type = 'STEP'; filename = "/data/pmannix/PDF_DNS_Data/Sim_STEP_Ra1e9/checkpoints/checkpoints_s1.h5"
 #type = 'IC_Random'; filename = "/home/pmannix/Dstratify/DNS_RBC/ICR_Ra1e11_T4e04/checkpoints/checkpoints_s1.h5"
-type = 'IC'; filename = None #"/data/pmannix/PDF_DNS_Data/IC8_1e11/checkpoints/checkpoints_s1.h5"
+#type = 'IC'; filename = None #"/data/pmannix/PDF_DNS_Data/IC8_1e11/checkpoints/checkpoints_s1.h5"
 
 # Bases
 coords = d3.CartesianCoordinates('x', 'z')
@@ -184,7 +179,7 @@ checkpoints = solver.evaluator.add_file_handler('checkpoints', sim_dt=10,)
 checkpoints.add_tasks(solver.state)
 
 # Snapshots
-snapshots = solver.evaluator.add_file_handler('snapshots', sim_dt=1)
+snapshots = solver.evaluator.add_file_handler('snapshots', sim_dt=.5)
 
 snapshots.add_task(-d3.div(d3.skew(u)), name='vorticity',scales=1)
 snapshots.add_task(b,    name='buoyancy',scales=1)
@@ -195,7 +190,7 @@ snapshots.add_task(d3.grad(u@ez), name='grad_w',scales=1)
 snapshots.add_task(d3.grad(p)   , name='grad_p',scales=1)
 
 # Time Series and spectra
-scalar = solver.evaluator.add_file_handler('scalar_data',sim_dt=1)
+scalar = solver.evaluator.add_file_handler('scalar_data',sim_dt=.5)
 
 scalar.add_task(d3.Integrate(u@u ),  layout='g', name='Eu(t)')
 scalar.add_task(d3.Integrate(b**2),  layout='g', name='Eb(t)')
