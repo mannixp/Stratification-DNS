@@ -426,11 +426,10 @@ if __name__ == "__main__":
 
     # Generate the pdf objects for all plots
     
-    files = glob.glob('/data/pmannix/PDF_DNS_Data/' + '/Sim**')
+    files = glob.glob('/data/pmannix/2D_Convection_Data_Analysis/' + '/Sim**')
     names_frames  = {'IC':5000, 'RBC':1000, 'PLUME':1700, 'SINE':1200, 'STEP':2000, 'WALLPLUME':1700}
     
     for file,(name,frames) in zip(files,names_frames.items()):
-        
         
         # check names match
         if name == file.split('/')[-1].split('_')[1]:
@@ -452,51 +451,51 @@ if __name__ == "__main__":
                 pickle.dump(pdf, f)
 
 
-    # Generate the pdf objects for all PLUME objects with restricted range
+    # # Generate the pdf objects for all PLUME objects with restricted range
     
-    file = '/data/pmannix/PDF_DNS_Data/' + '/Sim_WALLPLUME_Ra1e09/'
-    name = 'WALLPLUME'
-    frames = 1700
-    pdf_range = None #{'w':(-0.005,0.005),'b':(-0.005,0.005)}
+    # file = '/data/pmannix/PDF_DNS_Data/' + '/Sim_WALLPLUME_Ra1e09/'
+    # name = 'WALLPLUME'
+    # frames = 1700
+    # pdf_range = None #{'w':(-0.005,0.005),'b':(-0.005,0.005)}
 
-    os.chdir(file)
-    print('## Simulation case: ',name,'## \n')
+    # os.chdir(file)
+    # print('## Simulation case: ',name,'## \n')
 
-    pdf = PdfGenerator(file_dir=file, pdf_range=pdf_range, N_pts=2**8,frames=frames)       
+    # pdf = PdfGenerator(file_dir=file, pdf_range=pdf_range, N_pts=2**8,frames=frames)       
 
-    pdf.generate_pdf()
-    pdf.energetics(name)
-    pdf.spectra()
-    pdf.generate_expectation()
+    # pdf.generate_pdf()
+    # pdf.energetics(name)
+    # pdf.spectra()
+    # pdf.generate_expectation()
 
-    # Remove loaded data snapshots before saving
-    delattr(pdf, "data")
+    # # Remove loaded data snapshots before saving
+    # delattr(pdf, "data")
 
-    with open(name + '_pickled.pickle', 'wb') as f:
-        pickle.dump(pdf, f)
+    # with open(name + '_pickled.pickle', 'wb') as f:
+    #     pickle.dump(pdf, f)
 
-    # --------------------------------------------------------------------------
+    # # --------------------------------------------------------------------------
 
-    file = '/data/pmannix/PDF_DNS_Data/' + '/Sim_PLUME_Ra1e09/'
-    name = 'PLUME'
-    frames = 1700
-    pdf_range = None #{'w':(-0.075,0.075),'b':(-0.0075,0.0075)}
+    # file = '/data/pmannix/PDF_DNS_Data/' + '/Sim_PLUME_Ra1e09/'
+    # name = 'PLUME'
+    # frames = 1700
+    # pdf_range = None #{'w':(-0.075,0.075),'b':(-0.0075,0.0075)}
 
-    os.chdir(file)
-    print('## Simulation case: ',name,'## \n')
+    # os.chdir(file)
+    # print('## Simulation case: ',name,'## \n')
 
-    pdf = PdfGenerator(file_dir=file, pdf_range=pdf_range, N_pts=2**8,frames=frames)       
+    # pdf = PdfGenerator(file_dir=file, pdf_range=pdf_range, N_pts=2**8,frames=frames)       
 
-    pdf.generate_pdf()
-    pdf.energetics(name)
-    pdf.spectra()
-    pdf.generate_expectation()
+    # pdf.generate_pdf()
+    # pdf.energetics(name)
+    # pdf.spectra()
+    # pdf.generate_expectation()
 
-    # Remove loaded data snapshots before saving
-    delattr(pdf, "data")
+    # # Remove loaded data snapshots before saving
+    # delattr(pdf, "data")
 
-    with open(name + '_pickled.pickle', 'wb') as f:
-        pickle.dump(pdf, f)
+    # with open(name + '_pickled.pickle', 'wb') as f:
+    #     pickle.dump(pdf, f)
 
 
 # # To copy all the files generated to your data folder use

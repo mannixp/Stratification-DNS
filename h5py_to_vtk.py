@@ -24,7 +24,7 @@ def Make_VTK(DIR_ABS_PATH,OUT_FILE,time_index=-1):
     try:
         F1 = glob.glob(DIR_ABS_PATH + '/snapshots/*');
         print(F1)
-        file = h5py.File(F1[-1], 'r'); 
+        file = h5py.File(F1[0], 'r'); 
     except:
         pass;
     
@@ -62,15 +62,15 @@ def Make_VTK(DIR_ABS_PATH,OUT_FILE,time_index=-1):
 
 if __name__ == "__main__":
 
-    PATH = "/data/pmannix/PDF_DNS_Data/"
+    PATH = "/data/pmannix/2D_Convection_Data_Analysis/"
     
     #IN_FILE = "Sim_ICR_Ra1e11_T8e04"
     #IN_FILE = "Sim_RBC_Ra1e09"
-    #IN_FILE = "Sim_STEP_Ra1e9"
+    IN_FILE = "Sim_STEP_Ra1e9"
     #IN_FILE = "Sim_IC_Ra1e11_T3e04"
     #IN_FILE = "Sim_PLUME_Ra1e09"
     #IN_FILE = "Sim_SINE_Ra1e10"
-    IN_FILE = "Sim_WALLPLUME_Ra1e09"
+    #IN_FILE = "Sim_WALLPLUME_Ra1e09"
 
     DIR_ABS_PATH = PATH + IN_FILE
     OUT_FILE     = PATH + "para_visualisation"
